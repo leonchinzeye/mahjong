@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mahjong Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #1a6b3c;
+    --green-light: #e8f5ee;
+    --red: #c0392b;
+    --gold: #b8860b;
+    --bg: #f7f4ef;
+    --card: #ffffff;
+    --border: #e2ddd6;
+    --text: #1a1a1a;
+    --muted: #7a7168;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  header { text-align: center; padding: 20px 0 24px; }
+  header h1 { font-family: 'DM Serif Display', serif; font-size: 2rem; letter-spacing: 0.02em; color: var(--green); }
+  header p { font-size: 0.8rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .players { display: flex; flex-direction: column; gap: 12px; max-width: 480px; margin: 0 auto; }
+
+  .player-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .player-card.winner-glow { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(184,134,11,0.15); }
+
+  .player-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--green-light);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem; flex-shrink: 0;
+  }
+
+  .player-info { flex: 1; min-width: 0; }
+
+  .name-input {
+    font-family: 'DM Sans', sans-serif; font-weight: 600; font-size: 1rem;
+    border: none; border-bottom: 1.5px solid var(--border);
+    background: transparent; color: var(--text); width: 130px;
+    outline: none; padding: 2px 0;
+  }
+  .name-input:focus { border-bottom-color: var(--green); }
+
+  .record-row { font-size: 0.75rem; color: var(--muted); margin-top: 3px; }
+  .record-row span { margin-right: 8px; }
+
+  .balance { font-family: 'DM Serif Display', serif; font-size: 1.5rem; text-align: right; min-width: 80px; flex-shrink: 0; }
+  .balance.positive { color: var(--green); }
+  .balance.negative { color: var(--red); }
+  .balance.zero { color: var(--muted); }
+
+  .section-title {
+    text-align: center; font-size: 0.72rem; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--muted); margin: 28px 0 12px;
+  }
+
+  .round-form {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px; max-width: 480px; margin: 0 auto;
+  }
+
+  .form-row { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+
+  .form-label {
+    font-size: 0.75rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); margin-bottom: 6px;
+  }
+
+  .pill-group { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  .pill {
+    padding: 8px 16px; border-radius: 100px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 500;
+    cursor: pointer; transition: all 0.15s; color: var(--text);
+  }
+  .pill:hover { border-color: var(--green); }
+  .pill.selected { background: var(--green); border-color: var(--green); color: #fff; }
+  .pill.loser-selected { background: var(--red); border-color: var(--red); color: #fff; }
+
+  /* Per-loser amount rows */
+  .loser-amounts { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+
+  .loser-amount-row {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .loser-amount-label {
+    font-size: 0.85rem; font-weight: 600; min-width: 80px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  .amount-input {
+    font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600;
+    border: 1.5px solid var(--border); border-radius: 10px;
+    padding: 9px 12px; flex: 1; outline: none;
+    color: var(--text); background: var(--bg); transition: border-color 0.15s;
+  }
+  .amount-input:focus { border-color: var(--green); }
+
+  .amount-prefix { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+
+  .quick-amounts { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .quick-chip {
+    padding: 5px 11px; border-radius: 100px;
+    border: 1.5px solid var(--border); background: var(--bg);
+    font-family: 'DM Sans', sans-serif; font-size: 0.78rem; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; color: var(--muted);
+  }
+  .quick-chip:hover { border-color: var(--red); color: var(--red); }
+  .quick-chip.active { background: var(--red); border-color: var(--red); color: #fff; }
+
+  .add-btn {
+    width: 100%; padding: 13px; border-radius: 10px; border: none;
+    background: var(--green); color: #fff;
+    font-family: 'DM Sans', sans-serif; font-size: 1rem; font-weight: 600;
+    cursor: pointer; transition: opacity 0.15s;
+  }
+  .add-btn:hover { opacity: 0.88; }
+  .add-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .history-list { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+
+  .history-item {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px;
+  }
+
+  .history-top { display: flex; justify-content: space-between; align-items: flex-start; }
+  .history-left { font-size: 0.85rem; }
+  .history-round { font-weight: 600; color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .history-desc { margin-top: 2px; font-weight: 600; }
+
+  .history-payouts { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .history-payout-chip {
+    font-size: 0.75rem; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 100px; padding: 3px 10px; color: var(--muted);
+  }
+  .history-payout-chip strong { color: var(--red); }
+
+  .history-total { font-family: 'DM Serif Display', serif; font-size: 1.1rem; color: var(--gold); white-space: nowrap; }
+
+  .undo-btn {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 10px; font-size: 0.75rem; cursor: pointer;
+    color: var(--muted); margin-left: 10px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .undo-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .empty-history { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 0; }
+
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a1a; color: #fff; padding: 10px 20px;
+    border-radius: 100px; font-size: 0.85rem;
+    transition: transform 0.25s ease; z-index: 999; white-space: nowrap;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🀄 Mahjong</h1>
+  <p>3-player · money tracker</p>
+</header>
+
+<div class="players" id="playersContainer"></div>
+
+<p class="section-title">Add Round</p>
+
+<div class="round-form">
+  <div class="form-row">
+    <div class="form-label">Winner 🏆</div>
+    <div class="pill-group" id="winnerGroup"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-label">Losers 💸 (select 1 or 2)</div>
+    <div class="pill-group" id="loserGroup"></div>
+  </div>
+  <div class="loser-amounts" id="loserAmounts"></div>
+  <button class="add-btn" id="addBtn" onclick="addRound()">Record Round</button>
+</div>
+
+<p class="section-title">History</p>
+<div class="history-list" id="historyList"></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const EMOJIS = ['🐉','🐯','🐲'];
+
+  let players = [
+    { name: 'Player 1', wins: 0, losses: 0, balance: 0 },
+    { name: 'Player 2', wins: 0, losses: 0, balance: 0 },
+    { name: 'Player 3', wins: 0, losses: 0, balance: 0 },
+  ];
+
+  let history = [];
+  let selectedWinner = null;
+  let selectedLosers = [];
+
+  function render() {
+    renderPlayers();
+    renderPills();
+    renderLoserAmounts();
+    renderHistory();
+  }
+
+  function renderPlayers() {
+    const c = document.getElementById('playersContainer');
+    c.innerHTML = '';
+    const maxBal = Math.max(...players.map(p => p.balance));
+    players.forEach((p, i) => {
+      const isLeader = p.balance === maxBal && maxBal > 0;
+      const balClass = p.balance > 0 ? 'positive' : p.balance < 0 ? 'negative' : 'zero';
+      const sign = p.balance > 0 ? '+' : '';
+      c.innerHTML += `
+        <div class="player-card ${isLeader ? 'winner-glow' : ''}">
+          <div class="player-avatar">${EMOJIS[i]}</div>
+          <div class="player-info">
+            <div class="player-name-row">
+              <input class="name-input" value="${p.name}" onchange="renamePlayer(${i}, this.value)" maxlength="16">
+            </div>
+            <div class="record-row">
+              <span>🏆 ${p.wins}W</span><span>💸 ${p.losses}L</span>
+            </div>
+          </div>
+          <div class="balance ${balClass}">${sign}$${Math.abs(p.balance).toFixed(2)}</div>
+        </div>`;
+    });
+  }
+
+  function renderPills() {
+    const wg = document.getElementById('winnerGroup');
+    const lg = document.getElementById('loserGroup');
+    wg.innerHTML = '';
+    lg.innerHTML = '';
+    players.forEach((p, i) => {
+      const wSel = selectedWinner === i;
+      wg.innerHTML += `<button class="pill ${wSel ? 'selected' : ''}" onclick="selectWinner(${i})">${p.name}</button>`;
+      const lSel = selectedLosers.includes(i);
+      lg.innerHTML += `<button class="pill ${lSel ? 'loser-selected' : ''}" onclick="toggleLoser(${i})">${p.name}</button>`;
+    });
+  }
+
+  const QUICK_AMOUNTS = [0.1, 0.2, 0.4, 0.8, 1.6, 3.2];
+
+  function quickAmountChips(li) {
+    const cur = getStoredAmount(li);
+    return `<div class="quick-amounts">${QUICK_AMOUNTS.map(a =>
+      `<button class="quick-chip ${parseFloat(cur) === a ? 'active' : ''}" onclick="setQuickAmount(${li}, ${a})">$${a}</button>`
+    ).join('')}</div>`;
+  }
+
+  function setQuickAmount(li, amount) {
+    tempAmounts[li] = amount;
+    const input = document.getElementById(`amt_${li}`);
+    if (input) input.value = amount;
+    renderLoserAmounts();
+  }
+
+  function renderLoserAmounts() {
+    const container = document.getElementById('loserAmounts');
+    if (selectedLosers.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+
+    if (selectedLosers.length === 1) {
+      const li = selectedLosers[0];
+      const existing = getStoredAmount(li);
+      container.innerHTML = `
+        <div class="form-label">Amount lost $</div>
+        ${quickAmountChips(li)}
+        <div class="loser-amount-row">
+          <span class="amount-prefix">$</span>
+          <input type="number" class="amount-input" id="amt_${li}"
+            placeholder="0.10" min="0" step="0.1"
+            value="${existing}" oninput="storeAmount(${li}, this.value); renderLoserAmounts()">
+        </div>`;
+    } else {
+      let html = `<div class="form-label">Amount each loser pays $</div>`;
+      selectedLosers.forEach(li => {
+        const existing = getStoredAmount(li);
+        html += `
+          <div style="margin-bottom:10px">
+            <div class="loser-amount-label" style="margin-bottom:5px">${players[li].name}</div>
+            ${quickAmountChips(li)}
+            <div class="loser-amount-row">
+              <span class="amount-prefix">$</span>
+              <input type="number" class="amount-input" id="amt_${li}"
+                placeholder="0.10" min="0" step="0.1"
+                value="${existing}" oninput="storeAmount(${li}, this.value); renderLoserAmounts()">
+            </div>
+          </div>`;
+      });
+      container.innerHTML = html;
+    }
+  }
+
+  // Temporary store for amounts while filling in form
+  let tempAmounts = {};
+  function getStoredAmount(idx) { return tempAmounts[idx] || ''; }
+  function storeAmount(idx, val) { tempAmounts[idx] = val; }
+
+  function renamePlayer(i, name) {
+    players[i].name = name.trim() || `Player ${i+1}`;
+    renderPills();
+    renderLoserAmounts();
+    renderHistory();
+  }
+
+  function selectWinner(i) {
+    selectedWinner = selectedWinner === i ? null : i;
+    selectedLosers = selectedLosers.filter(l => l !== i);
+    tempAmounts = {};
+    renderPills();
+    renderLoserAmounts();
+  }
+
+  function toggleLoser(i) {
+    if (i === selectedWinner) return;
+    if (selectedLosers.includes(i)) {
+      selectedLosers = selectedLosers.filter(l => l !== i);
+      delete tempAmounts[i];
+    } else {
+      selectedLosers.push(i);
+    }
+    renderPills();
+    renderLoserAmounts();
+  }
+
+  function addRound() {
+    if (selectedWinner === null) { showToast('Pick a winner first'); return; }
+    if (selectedLosers.length === 0) { showToast('Pick at least one loser'); return; }
+
+    // Read amounts from inputs
+    const loserPayments = {};
+    for (const li of selectedLosers) {
+      const input = document.getElementById(`amt_${li}`);
+      const val = parseFloat(input ? input.value : '');
+      if (isNaN(val) || val <= 0) {
+        showToast(`Enter amount for ${players[li].name}`);
+        return;
+      }
+      loserPayments[li] = val;
+    }
+
+    const total = Object.values(loserPayments).reduce((a, b) => a + b, 0);
+
+    players[selectedWinner].wins++;
+    players[selectedWinner].balance += total;
+
+    const loserDetails = selectedLosers.map(li => {
+      players[li].losses++;
+      players[li].balance -= loserPayments[li];
+      return { idx: li, name: players[li].name, amount: loserPayments[li] };
+    });
+
+    history.push({
+      round: history.length + 1,
+      winner: players[selectedWinner].name,
+      winnerIdx: selectedWinner,
+      loserDetails,
+      total,
+    });
+
+    selectedWinner = null;
+    selectedLosers = [];
+    tempAmounts = {};
+    render();
+    showToast('Round recorded!');
+  }
+
+  function undoRound(idx) {
+    const r = history[idx];
+    players[r.winnerIdx].wins = Math.max(0, players[r.winnerIdx].wins - 1);
+    players[r.winnerIdx].balance -= r.total;
+    r.loserDetails.forEach(ld => {
+      players[ld.idx].losses = Math.max(0, players[ld.idx].losses - 1);
+      players[ld.idx].balance += ld.amount;
+    });
+    history.splice(idx, 1);
+    history.forEach((h, i) => h.round = i + 1);
+    render();
+    showToast('Round undone');
+  }
+
+  function renderHistory() {
+    const hl = document.getElementById('historyList');
+    if (history.length === 0) {
+      hl.innerHTML = '<div class="empty-history">No rounds yet — start playing!</div>';
+      return;
+    }
+    hl.innerHTML = '';
+    [...history].reverse().forEach((r, ri) => {
+      const idx = history.length - 1 - ri;
+      const chips = r.loserDetails.map(ld =>
+        `<span class="history-payout-chip">${ld.name} <strong>-$${ld.amount.toFixed(2)}</strong></span>`
+      ).join('');
+      hl.innerHTML += `
+        <div class="history-item">
+          <div class="history-top">
+            <div class="history-left">
+              <div class="history-round">Round ${r.round}</div>
+              <div class="history-desc">🏆 ${r.winner} wins $${r.total.toFixed(2)}</div>
+            </div>
+            <div style="display:flex;align-items:center">
+              <button class="undo-btn" onclick="undoRound(${idx})">undo</button>
+            </div>
+          </div>
+          <div class="history-payouts">${chips}</div>
+        </div>`;
+    });
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2200);
+  }
+
+  render();
+</script>
+</body>
+</html>
