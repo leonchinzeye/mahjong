@@ -316,7 +316,7 @@
       const card = c.querySelector(`[data-player-idx="${i}"]`);
       const isLeader = p.balance === maxBal && maxBal > 0;
       const balClass = p.balance > 0 ? 'positive' : p.balance < 0 ? 'negative' : 'zero';
-      const sign = p.balance > 0 ? '+' : '';
+      const sign = p.balance > 0 ? '+' : p.balance < 0 ? '-' : '';
       card.className = `player-card${isLeader ? ' winner-glow' : ''}`;
       card.innerHTML = `
         <div class="player-avatar">${EMOJIS[i]}</div>
