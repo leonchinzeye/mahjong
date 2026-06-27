@@ -529,13 +529,13 @@
         <div class="bonus-row">
           <div class="player-avatar">${EMOJIS[i]}</div>
           <span class="bonus-name">${p.name}</span>
-          <button class="bonus-btn" onclick="recordBonus(${i})">+$0.10</button>
+          <button class="bonus-btn" onclick="recordBonus(${i}, 0.10)">+$0.10</button>
+          <button class="bonus-btn" onclick="recordBonus(${i}, 0.20)">+$0.20</button>
         </div>`;
     });
   }
 
-  function recordBonus(winnerIdx) {
-    const BONUS = 0.10;
+  function recordBonus(winnerIdx, BONUS) {
     const others = players.map((_, i) => i).filter(i => i !== winnerIdx);
     players[winnerIdx].balance += others.length * BONUS;
     const loserDetails = others.map(i => {
