@@ -171,6 +171,36 @@
 
   .empty-history { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 20px 0; }
 
+  .bonus-section {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 14px 18px; max-width: 480px; margin: 0 auto;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+
+  .bonus-row {
+    display: flex; align-items: center; gap: 12px;
+  }
+
+  .bonus-name { flex: 1; font-weight: 600; font-size: 0.9rem; }
+
+  .bonus-btn {
+    padding: 7px 16px; border-radius: 100px;
+    border: 1.5px solid var(--gold); background: var(--bg);
+    font-family: 'DM Sans', sans-serif; font-size: 0.85rem; font-weight: 600;
+    cursor: pointer; color: var(--gold); transition: all 0.15s;
+  }
+  .bonus-btn:hover { background: var(--gold); color: #fff; }
+
+  .reset-btn {
+    position: absolute; top: 20px; right: 0;
+    background: none; border: 1.5px solid var(--border); border-radius: 8px;
+    padding: 5px 12px; font-family: 'DM Sans', sans-serif; font-size: 0.75rem;
+    font-weight: 500; color: var(--muted); cursor: pointer; transition: all 0.15s;
+  }
+  .reset-btn:hover { border-color: var(--red); color: var(--red); }
+
+  header { position: relative; }
+
   .toast {
     position: fixed; bottom: 24px; left: 50%;
     transform: translateX(-50%) translateY(80px);
@@ -186,6 +216,7 @@
 <header>
   <h1>🀄 Mahjong</h1>
   <p>3-player · money tracker</p>
+  <button class="reset-btn" onclick="resetGame()">Reset</button>
 </header>
 
 <div class="players" id="playersContainer"></div>
@@ -205,6 +236,9 @@
   <button class="add-btn" id="addBtn" onclick="addRound()">Record Round</button>
 </div>
 
+<p class="section-title">Bonus</p>
+<div class="bonus-section" id="bonusSection"></div>
+
 <p class="section-title">History</p>
 <div class="history-list" id="historyList"></div>
 
@@ -223,11 +257,44 @@
   let selectedWinner = null;
   let selectedLosers = [];
 
+  function saveState() {
+    localStorage.setItem('mahjong_state', JSON.stringify({ players, history }));
+  }
+
+  function loadState() {
+    try {
+      const saved = localStorage.getItem('mahjong_state');
+      if (saved) {
+        const s = JSON.parse(saved);
+        players = s.players;
+        history = s.history;
+      }
+    } catch(e) {}
+  }
+
+  function resetGame() {
+    if (!confirm('Reset all scores and history?')) return;
+    players = [
+      { name: 'Player 1', wins: 0, losses: 0, balance: 0 },
+      { name: 'Player 2', wins: 0, losses: 0, balance: 0 },
+      { name: 'Player 3', wins: 0, losses: 0, balance: 0 },
+    ];
+    history = [];
+    selectedWinner = null;
+    selectedLosers = [];
+    tempAmounts = {};
+    localStorage.removeItem('mahjong_state');
+    render();
+    showToast('Game reset');
+  }
+
   function render() {
     renderPlayers();
     renderPills();
     renderLoserAmounts();
+    renderBonus();
     renderHistory();
+    saveState();
   }
 
   function renderPlayers() {
@@ -398,16 +465,53 @@
 
   function undoRound(idx) {
     const r = history[idx];
-    players[r.winnerIdx].wins = Math.max(0, players[r.winnerIdx].wins - 1);
+    if (r.type !== 'bonus') {
+      players[r.winnerIdx].wins = Math.max(0, players[r.winnerIdx].wins - 1);
+    }
     players[r.winnerIdx].balance -= r.total;
     r.loserDetails.forEach(ld => {
-      players[ld.idx].losses = Math.max(0, players[ld.idx].losses - 1);
+      if (r.type !== 'bonus') {
+        players[ld.idx].losses = Math.max(0, players[ld.idx].losses - 1);
+      }
       players[ld.idx].balance += ld.amount;
     });
     history.splice(idx, 1);
     history.forEach((h, i) => h.round = i + 1);
     render();
-    showToast('Round undone');
+    showToast('Undone');
+  }
+
+  function renderBonus() {
+    const container = document.getElementById('bonusSection');
+    container.innerHTML = '';
+    players.forEach((p, i) => {
+      container.innerHTML += `
+        <div class="bonus-row">
+          <div class="player-avatar">${EMOJIS[i]}</div>
+          <span class="bonus-name">${p.name}</span>
+          <button class="bonus-btn" onclick="recordBonus(${i})">+$0.10</button>
+        </div>`;
+    });
+  }
+
+  function recordBonus(winnerIdx) {
+    const BONUS = 0.10;
+    const others = players.map((_, i) => i).filter(i => i !== winnerIdx);
+    players[winnerIdx].balance += others.length * BONUS;
+    const loserDetails = others.map(i => {
+      players[i].balance -= BONUS;
+      return { idx: i, name: players[i].name, amount: BONUS };
+    });
+    history.push({
+      round: history.length + 1,
+      type: 'bonus',
+      winner: players[winnerIdx].name,
+      winnerIdx,
+      loserDetails,
+      total: others.length * BONUS,
+    });
+    render();
+    showToast(`${players[winnerIdx].name} +$${(others.length * BONUS).toFixed(2)}`);
   }
 
   function renderHistory() {
@@ -419,15 +523,20 @@
     hl.innerHTML = '';
     [...history].reverse().forEach((r, ri) => {
       const idx = history.length - 1 - ri;
+      const isBonus = r.type === 'bonus';
       const chips = r.loserDetails.map(ld =>
         `<span class="history-payout-chip">${ld.name} <strong>-$${ld.amount.toFixed(2)}</strong></span>`
       ).join('');
+      const desc = isBonus
+        ? `⭐ ${r.winner} bonus +$${r.total.toFixed(2)}`
+        : `🏆 ${r.winner} wins $${r.total.toFixed(2)}`;
+      const label = isBonus ? `Bonus #${r.round}` : `Round ${r.round}`;
       hl.innerHTML += `
         <div class="history-item">
           <div class="history-top">
             <div class="history-left">
-              <div class="history-round">Round ${r.round}</div>
-              <div class="history-desc">🏆 ${r.winner} wins $${r.total.toFixed(2)}</div>
+              <div class="history-round">${label}</div>
+              <div class="history-desc">${desc}</div>
             </div>
             <div style="display:flex;align-items:center">
               <button class="undo-btn" onclick="undoRound(${idx})">undo</button>
@@ -445,6 +554,7 @@
     setTimeout(() => t.classList.remove('show'), 2200);
   }
 
+  loadState();
   render();
 </script>
 </body>
