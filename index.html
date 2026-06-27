@@ -398,7 +398,9 @@
     players[i].name = name.trim() || `Player ${i+1}`;
     renderPills();
     renderLoserAmounts();
+    renderBonus();
     renderHistory();
+    saveState();
   }
 
   function selectWinner(i) {
