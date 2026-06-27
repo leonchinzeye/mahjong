@@ -299,25 +299,63 @@
 
   function renderPlayers() {
     const c = document.getElementById('playersContainer');
-    c.innerHTML = '';
     const maxBal = Math.max(...players.map(p => p.balance));
+
+    // Create persistent card elements on first render
+    if (c.children.length !== players.length) {
+      c.innerHTML = '';
+      players.forEach((_, i) => {
+        const div = document.createElement('div');
+        div.dataset.playerIdx = i;
+        c.appendChild(div);
+      });
+    }
+
+    // Update each card's content in place
     players.forEach((p, i) => {
+      const card = c.querySelector(`[data-player-idx="${i}"]`);
       const isLeader = p.balance === maxBal && maxBal > 0;
       const balClass = p.balance > 0 ? 'positive' : p.balance < 0 ? 'negative' : 'zero';
       const sign = p.balance > 0 ? '+' : '';
-      c.innerHTML += `
-        <div class="player-card ${isLeader ? 'winner-glow' : ''}">
-          <div class="player-avatar">${EMOJIS[i]}</div>
-          <div class="player-info">
-            <div class="player-name-row">
-              <input class="name-input" value="${p.name}" onchange="renamePlayer(${i}, this.value)" maxlength="16">
-            </div>
-            <div class="record-row">
-              <span>🏆 ${p.wins}W</span><span>💸 ${p.losses}L</span>
-            </div>
+      card.className = `player-card${isLeader ? ' winner-glow' : ''}`;
+      card.innerHTML = `
+        <div class="player-avatar">${EMOJIS[i]}</div>
+        <div class="player-info">
+          <div class="player-name-row">
+            <input class="name-input" value="${p.name}" onchange="renamePlayer(${i}, this.value)" maxlength="16">
           </div>
-          <div class="balance ${balClass}">${sign}$${Math.abs(p.balance).toFixed(2)}</div>
-        </div>`;
+          <div class="record-row">
+            <span>🏆 ${p.wins}W</span><span>💸 ${p.losses}L</span>
+          </div>
+        </div>
+        <div class="balance ${balClass}">${sign}$${Math.abs(p.balance).toFixed(2)}</div>`;
+    });
+
+    // Sort descending by balance, stable by original index for ties
+    const sorted = players.map((_, i) => i)
+      .sort((a, b) => players[b].balance - players[a].balance || a - b);
+
+    // FLIP: snapshot positions before reorder
+    const before = {};
+    Array.from(c.children).forEach(card => {
+      before[card.dataset.playerIdx] = card.getBoundingClientRect().top;
+    });
+
+    // Reorder DOM
+    sorted.forEach(idx => c.appendChild(c.querySelector(`[data-player-idx="${idx}"]`)));
+
+    // FLIP: animate each card from its old position to the new one
+    Array.from(c.children).forEach(card => {
+      const delta = before[card.dataset.playerIdx] - card.getBoundingClientRect().top;
+      if (Math.abs(delta) > 0.5) {
+        card.style.transition = 'none';
+        card.style.transform = `translateY(${delta}px)`;
+        requestAnimationFrame(() => requestAnimationFrame(() => {
+          card.style.transition = 'transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+          card.style.transform = '';
+          card.addEventListener('transitionend', () => { card.style.transition = ''; }, { once: true });
+        }));
+      }
     });
   }
 
