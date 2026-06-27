@@ -335,6 +335,12 @@
     const sorted = players.map((_, i) => i)
       .sort((a, b) => players[b].balance - players[a].balance || a - b);
 
+    // FLIP: cancel any in-progress animation before measuring
+    Array.from(c.children).forEach(card => {
+      card.style.transition = 'none';
+      card.style.transform = '';
+    });
+
     // FLIP: snapshot positions before reorder
     const before = {};
     Array.from(c.children).forEach(card => {
